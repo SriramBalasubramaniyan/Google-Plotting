@@ -32,12 +32,14 @@ class MapControllerProvider extends ChangeNotifier {
   late Directory storage;
 
   //Plotting
-  /*GeoAreasCalculateFarm? farmData;
+  GeoAreasCalculateFarm? farmData;
 
   LatLng? latLng;
   Set<Polygon> polygons = {};
 
-  List<LatLng> coordinates = [];*/
+  List<LatLng> coordinates = [];
+
+  bool isLoading = false;
 
   MapControllerProvider() {
     WidgetsFlutterBinding.ensureInitialized().addPostFrameCallback((
@@ -49,6 +51,8 @@ class MapControllerProvider extends ChangeNotifier {
   }
 
   Future<void> _initLocation() async {
+    isLoading = true;
+    notifyListeners();
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
@@ -81,6 +85,8 @@ class MapControllerProvider extends ChangeNotifier {
     } catch (e) {
       Fluttertoast.showToast(msg: "Location error: $e");
     }
+    isLoading = false;
+    notifyListeners();
   }
 
   Future<void> _initMapCache() async {
@@ -165,7 +171,7 @@ class MapControllerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /*_myPolygon() {
+  _myPolygon() {
     polygons.add(
       Polygon(
         polygonId: PolygonId('test'),
@@ -290,5 +296,5 @@ class MapControllerProvider extends ChangeNotifier {
     );
 
     notifyListeners();
-  }*/
+  }
 }
