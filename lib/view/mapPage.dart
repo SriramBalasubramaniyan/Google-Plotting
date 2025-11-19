@@ -200,12 +200,10 @@ class _MapPageState extends State<MapPage> {
                 builder: (context, polygon, child) {
                   return GoogleMap(
                     initialCameraPosition: CameraPosition(
-                      target: ctrl.currentPosition != null
-                          ? LatLng(
+                      target: LatLng(
                               ctrl.currentPosition!.latitude,
                               ctrl.currentPosition!.longitude,
-                            )
-                          : LatLng(0, 0),
+                            ),
                       zoom: 12,
                     ),
                     onMapCreated: (c) =>
@@ -460,11 +458,17 @@ class ButtonsRowWidget extends StatelessWidget {
                                                 MainAxisAlignment
                                                     .center,
                                                 children: [
-                                                  Text(
-                                                    'Lat : ${data.latitude}',
+                                                  Align(
+                                                    alignment: Alignment.center,
+                                                    child: Text(
+                                                      'Lat : ${data.latitude}',
+                                                    ),
                                                   ),
-                                                  Text(
-                                                    'Lng : ${data.longitude}',
+                                                  Align(
+                                                    alignment: Alignment.center,
+                                                    child: Text(
+                                                      'Lng : ${data.longitude}',
+                                                    ),
                                                   ),
                                                 ],
                                               );
