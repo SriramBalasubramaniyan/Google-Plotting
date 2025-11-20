@@ -38,8 +38,17 @@ class MapControllerProvider extends ChangeNotifier {
   Set<Polygon> polygons = {};
 
   List<LatLng> coordinates = [];
+  Set<Marker> markers = {};
+
+  //Timer
+  Timer? timer;
 
   bool isLoading = false;
+
+  bool isAutoPlotting = false;
+  int countDown = 0;
+  bool showCountdown = false;
+  Timer? _countDownTimer;
 
   MapControllerProvider() {
     WidgetsFlutterBinding.ensureInitialized().addPostFrameCallback((
@@ -48,6 +57,14 @@ class MapControllerProvider extends ChangeNotifier {
       _initLocation();
       _initMapCache();
     });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    _sub?.cancel();
+    timer?.cancel();
+    _countDownTimer?.cancel();
   }
 
   Future<void> _initLocation() async {
@@ -80,6 +97,9 @@ class MapControllerProvider extends ChangeNotifier {
         ),
       ).listen((pos) {
         currentPosition = pos;
+        if(isAutoPlotting) {
+          onTapMap(LatLng(currentPosition!.latitude, currentPosition!.longitude));
+        }
         notifyListeners();
       });
     } catch (e) {
@@ -100,12 +120,6 @@ class MapControllerProvider extends ChangeNotifier {
           .toList();
     }
     notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    _sub?.cancel();
-    super.dispose();
   }
 
   Future<void> saveSnapshot({
@@ -185,15 +199,41 @@ class MapControllerProvider extends ChangeNotifier {
     );
   }
 
+  Set<Marker> _setMarkers() {
+    Set<Marker> mark = {};
+    for (var a in coordinates.indexed) {
+      mark.add(Marker(
+          icon: BitmapDescriptor.defaultMarkerWithHue(a.$1 == 0
+              ? BitmapDescriptor.hueGreen
+              : a.$1 == coordinates.length - 1
+              ? BitmapDescriptor.hueRed
+              : BitmapDescriptor.hueOrange),
+          markerId: MarkerId(a.$1.toString()),
+          position: LatLng(a.$2.latitude, a.$2.longitude),
+          infoWindow: InfoWindow(
+            anchor: Offset(0.7, 0.01),
+            snippet: 'lat: ${a.$2.latitude}, lng: ${a.$2.longitude}',
+            title: latLng != null
+                ? '${a.$1 == 0 ? "Start" : a.$1 == coordinates.length - 1 ? "End" : 'Intermediate ${a.$1}'}   '
+                : null,
+          )));
+    }
+    return mark;
+  }
+
   resetMap() {
+    markers.clear();
     polygons.clear();
     coordinates.clear();
+    isAutoPlotting = false;
     notifyListeners();
   }
 
   undoOnPressed() async {
     coordinates.removeAt(coordinates.length - 1);
     await _myPolygon();
+    markers = _setMarkers();
+    isAutoPlotting = false;
     notifyListeners();
   }
 
@@ -201,9 +241,37 @@ class MapControllerProvider extends ChangeNotifier {
     return length >= 3 ? true : false;
   }
 
+  setAutoPlotting() async {
+    isAutoPlotting = !isAutoPlotting;
+    if(isAutoPlotting) await startCountdown();
+    notifyListeners();
+  }
+
+  startCountdown() {
+    countDown = 3;
+    showCountdown = true;
+    notifyListeners();
+
+    _countDownTimer?.cancel();
+    _countDownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+      countDown--;
+
+      if (countDown == 0) {
+        timer.cancel();
+        Future.delayed(Duration(milliseconds: 500), () {
+          showCountdown = false;
+          notifyListeners();
+        });
+        return;
+      }
+      notifyListeners();
+    });
+  }
+
   onTapMap(LatLng data) async {
     coordinates.add(data);
     await _myPolygon();
+    markers = _setMarkers();
     notifyListeners();
   }
 
@@ -213,6 +281,9 @@ class MapControllerProvider extends ChangeNotifier {
   }
 
   calculate() {
+    isAutoPlotting = false;
+    notifyListeners();
+
     var lat = coordinates[0].latitude;
     var lng = coordinates[0].longitude;
 

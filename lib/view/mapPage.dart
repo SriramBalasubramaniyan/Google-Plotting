@@ -184,167 +184,254 @@ class _MapPageState extends State<MapPage> {
         shouldRebuild: (p, n) => true,
         selector: (context, MapControllerProvider p) => p.isLoading,
         builder: (context, isLoading, child) {
-          return isLoading ? SizedBox(
-            height: 20,
-            width: 20,
-            child: CircularProgressIndicator(
-              backgroundColor: Colors.grey.shade300,
-              strokeWidth: 1.7,
-              color: Colors.green,
-            ),
-          ) : Stack(
-            children: [
-              Selector(
-                shouldRebuild: (previous, next) => true,
-                selector: (context, MapControllerProvider p) => p.polygons,
-                builder: (context, polygon, child) {
-                  return GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: LatLng(
+          return isLoading
+              ? SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    backgroundColor: Colors.grey.shade300,
+                    strokeWidth: 1.7,
+                    color: Colors.green,
+                  ),
+                )
+              : Stack(
+                  children: [
+                    Selector(
+                      shouldRebuild: (previous, next) => true,
+                      selector: (context, MapControllerProvider p) =>
+                          p.polygons,
+                      builder: (context, polygon, child) {
+                        return GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                            target: LatLng(
                               ctrl.currentPosition!.latitude,
                               ctrl.currentPosition!.longitude,
                             ),
-                      zoom: 12,
-                    ),
-                    onMapCreated: (c) =>
-                        context.read<MapControllerProvider>().setController(c),
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                    zoomControlsEnabled: false,
-                    compassEnabled: true,
-                    polygons: polygon,
-                    mapType: ctrl.mapType,
-                    trafficEnabled: ctrl.trafficEnabled,
-                    buildingsEnabled: ctrl.buildingsEnabled,
-                    indoorViewEnabled: ctrl.indoorViewEnabled,
-                    onCameraIdle: () async {
-                      if (!online) return;
-
-                      final controller = ctrl.controller;
-                      if (controller == null) return;
-
-                      final bounds = await controller.getVisibleRegion();
-                      final bytes = await controller.takeSnapshot();
-                      if (bytes == null) return;
-
-                      await context.read<MapControllerProvider>().saveSnapshot(
-                        bytes: bytes,
-                        ne: bounds.northeast,
-                        sw: bounds.southwest,
-                      );
-                    },
-                    onTap: (pos) async {
-                      ctrl.onTapMap(pos);
-                      if (online) {
-                        // Fluttertoast.showToast(msg: "Lat: ${pos.latitude.toStringAsFixed(7)}, Lng: ${pos.longitude.toStringAsFixed(7)}");
-                        return;
-                      }
-
-                      final hit = ctrl.find(pos);
-                      if (hit == null) {
-                        Fluttertoast.showToast(msg: "No cached data here.");
-                        return;
-                      }
-
-                      final file = File(hit.path);
-                      final bytes = await file.readAsBytes();
-
-                      context.read<MapControllerProvider>().showOverlay(
-                        hit,
-                        bytes,
-                      );
-                    },
-                  );
-                },
-              ),
-              Positioned(
-                top: 0,
-                left: 10,
-                right: 10,
-                child: SafeArea(
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            decoration: const InputDecoration(
-                              hintText: "Search here",
-                              border: InputBorder.none,
-                            ),
-                            textInputAction: TextInputAction.search,
-                            onSubmitted: (_) => _searchAndMove(context),
+                            zoom: 12,
                           ),
-                        ),
-                        if (_isSearching)
-                          const Padding(
-                            padding: EdgeInsets.only(right: 12),
-                            child: SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        else
-                          IconButton(
-                            icon: const Icon(Icons.search),
-                            onPressed: () => _searchAndMove(context),
-                          ),
-                      ],
+                          onMapCreated: (c) => context
+                              .read<MapControllerProvider>()
+                              .setController(c),
+                          myLocationEnabled: true,
+                          myLocationButtonEnabled: true,
+                          zoomControlsEnabled: false,
+                          compassEnabled: true,
+                          polygons: polygon,
+                          markers: context
+                              .read<MapControllerProvider>()
+                              .markers,
+                          mapType: ctrl.mapType,
+                          trafficEnabled: ctrl.trafficEnabled,
+                          buildingsEnabled: ctrl.buildingsEnabled,
+                          indoorViewEnabled: ctrl.indoorViewEnabled,
+                          onCameraIdle: () async {
+                            if (!online) return;
+
+                            final controller = ctrl.controller;
+                            if (controller == null) return;
+
+                            final bounds = await controller.getVisibleRegion();
+                            final bytes = await controller.takeSnapshot();
+                            if (bytes == null) return;
+
+                            await context
+                                .read<MapControllerProvider>()
+                                .saveSnapshot(
+                                  bytes: bytes,
+                                  ne: bounds.northeast,
+                                  sw: bounds.southwest,
+                                );
+                          },
+                          onTap: (pos) async {
+                            if(context.read<MapControllerProvider>().isAutoPlotting) return;
+
+                            ctrl.onTapMap(pos);
+                            if (online) {
+                              // Fluttertoast.showToast(msg: "Lat: ${pos.latitude.toStringAsFixed(7)}, Lng: ${pos.longitude.toStringAsFixed(7)}");
+                              return;
+                            }
+
+                            final hit = ctrl.find(pos);
+                            if (hit == null) {
+                              Fluttertoast.showToast(
+                                msg: "No cached data here.",
+                              );
+                              return;
+                            }
+
+                            final file = File(hit.path);
+                            final bytes = await file.readAsBytes();
+
+                            context.read<MapControllerProvider>().showOverlay(
+                              hit,
+                              bytes,
+                            );
+                          },
+                        );
+                      },
                     ),
-                  ),
-                ),
-              ),
-
-              Positioned(
-                bottom: 10,
-                right: 10,
-                child: FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.green,
-                  heroTag: "my_location_btn",
-                  mini: true,
-                  onPressed: () => _goToCurrentLocation(context),
-                  child: const Icon(Icons.my_location),
-                ),
-              ),
-
-              Positioned(
-                top: 90,
-                right: 10,
-                child: FloatingActionButton(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black54,
-                  heroTag: "map_type_btn",
-                  mini: true,
-                  onPressed: () => _showMapOptionsSheet(context),
-                  child: const Icon(Icons.layers),
-                ),
-              ),
-
-              if (ctrl.overlayBytes != null)
-                Positioned.fill(
-                  child: GestureDetector(
-                    onTap: () =>
-                        context.read<MapControllerProvider>().hideOverlay(),
-                    child: Container(
-                      color: Colors.black.withOpacity(0.7),
-                      child: Center(
-                        child: Image.memory(
-                          ctrl.overlayBytes!,
-                          fit: BoxFit.contain,
+                    Positioned(
+                      top: 0,
+                      left: 10,
+                      right: 10,
+                      child: SafeArea(
+                        child: Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  decoration: const InputDecoration(
+                                    hintText: "Search here",
+                                    border: InputBorder.none,
+                                  ),
+                                  textInputAction: TextInputAction.search,
+                                  onSubmitted: (_) => _searchAndMove(context),
+                                ),
+                              ),
+                              if (_isSearching)
+                                const Padding(
+                                  padding: EdgeInsets.only(right: 12),
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              else
+                                IconButton(
+                                  icon: const Icon(Icons.search),
+                                  onPressed: () => _searchAndMove(context),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-            ],
-          );
+
+                    Positioned(
+                      top: 90,
+                      right: 10,
+                      child: FloatingActionButton(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black54,
+                        heroTag: "map_type_btn",
+                        mini: true,
+                        onPressed: () => _showMapOptionsSheet(context),
+                        child: const Icon(Icons.layers),
+                      ),
+                    ),
+
+                    Selector(
+                      shouldRebuild: (previous, next) => true,
+                      selector: (context, MapControllerProvider p) =>
+                          p.showCountdown,
+                      builder: (context, value, child) {
+                        return value
+                            ? Positioned(
+                                top: MediaQuery.of(context).size.height * 0.35,
+                                left: 0,
+                                right: 0,
+                                child: Center(
+                                  child: Text(
+                                    "Starting Auto Plotting in",
+                                    style: TextStyle(
+                                      fontSize: 25,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : SizedBox();
+                      },
+                    ),
+
+                    Selector(
+                      shouldRebuild: (previous, next) => true,
+                      selector: (context, MapControllerProvider p) =>
+                          p.showCountdown,
+                      builder: (context, value, child) {
+                        return value
+                            ? Positioned(
+                                bottom:
+                                    MediaQuery.of(context).size.height * 0.35,
+                                left: 0,
+                                right: 0,
+                                child: Center(
+                                  child: Text(
+                                    context
+                                        .read<MapControllerProvider>()
+                                        .countDown
+                                        .toString(),
+                                    style: TextStyle(
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : SizedBox();
+                      },
+                    ),
+
+                    Positioned(
+                      top: 150,
+                      right: 10,
+                      child: Selector(
+                        shouldRebuild: (previous, next) => true,
+                        selector: (context, MapControllerProvider p) => p.isAutoPlotting,
+                        builder: (context, value, child) {
+                          return FloatingActionButton(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black54,
+                            heroTag: "auto_ploy_btn",
+                            mini: true,
+                            onPressed: () => ctrl.setAutoPlotting(),
+                            child: value ? const Icon(Icons.stop_circle,color: Colors.red) : const Icon(Icons.av_timer,color: Colors.green),
+                          );
+                        },
+                      ),
+                    ),
+
+                    Positioned(
+                      bottom: 10,
+                      right: 10,
+                      child: FloatingActionButton(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.green,
+                        heroTag: "my_location_btn",
+                        mini: true,
+                        onPressed: () => _goToCurrentLocation(context),
+                        child: const Icon(Icons.my_location),
+                      ),
+                    ),
+
+                    if (ctrl.overlayBytes != null)
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onTap: () => context
+                              .read<MapControllerProvider>()
+                              .hideOverlay(),
+                          child: Container(
+                            color: Colors.black.withOpacity(0.7),
+                            child: Center(
+                              child: Image.memory(
+                                ctrl.overlayBytes!,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
         },
       ),
     );
@@ -379,140 +466,142 @@ class ButtonsRowWidget extends StatelessWidget {
             builder: (ct, v, child) {
               return geo.endDisplayer(v.length)
                   ? CustomFilledButton(
-                label: 'End',
-                color: Colors.red,
-                onPressed: () async {
-                  await geo.calculate();
-                  await showModalBottomSheet(
-                    context: context,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.zero,
-                    ),
-                    builder: (ctx) {
-                      return SafeArea(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              height: 5,
-                              margin: EdgeInsets.symmetric(vertical: 5),
-                              width: 40,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(15),
-                                color: Colors.black,
-                              ),
-                            ),
-                            SizedBox(
-                              width: double.infinity,
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      "Calculation",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
+                      label: 'End',
+                      color: Colors.red,
+                      onPressed: () async {
+                        await geo.calculate();
+                        await showModalBottomSheet(
+                          context: context,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                          builder: (ctx) {
+                            return SafeArea(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    height: 5,
+                                    margin: EdgeInsets.symmetric(vertical: 5),
+                                    width: 40,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(15),
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
                                       ),
-                                    ),
-                                    SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        CustomColumn(
-                                          label: 'Acre',
-                                          value: geo.farmData!.acre,
-                                        ),
-                                        CustomColumn(
-                                          label: 'Hectare',
-                                          value: geo.farmData!.hectare,
-                                        ),
-                                        CustomColumn(
-                                          label: 'Square Meter',
-                                          value:
-                                          geo.farmData!.squareMeters,
-                                        ),
-                                      ],
-                                    ),
-                                    Divider(endIndent: 5, indent: 5),
-                                    Text(
-                                      'Positions',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Flexible(
-                                      child: SingleChildScrollView(
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: List.generate(
-                                            geo.coordinates.length,
-                                                (int i) {
-                                              LatLng data =
-                                              geo.coordinates[i];
-                                              return Row(
-                                                spacing: 20,
-                                                mainAxisAlignment:
-                                                MainAxisAlignment
-                                                    .center,
-                                                children: [
-                                                  Align(
-                                                    alignment: Alignment.center,
-                                                    child: Text(
-                                                      'Lat : ${data.latitude}',
-                                                    ),
-                                                  ),
-                                                  Align(
-                                                    alignment: Alignment.center,
-                                                    child: Text(
-                                                      'Lng : ${data.longitude}',
-                                                    ),
-                                                  ),
-                                                ],
-                                              );
-                                            },
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            "Calculation",
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                        ),
+                                          SizedBox(height: 10),
+                                          Row(
+                                            children: [
+                                              CustomColumn(
+                                                label: 'Acre',
+                                                value: geo.farmData!.acre,
+                                              ),
+                                              CustomColumn(
+                                                label: 'Hectare',
+                                                value: geo.farmData!.hectare,
+                                              ),
+                                              CustomColumn(
+                                                label: 'Square Meter',
+                                                value:
+                                                    geo.farmData!.squareMeters,
+                                              ),
+                                            ],
+                                          ),
+                                          Divider(endIndent: 5, indent: 5),
+                                          Text(
+                                            'Positions',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Flexible(
+                                            child: SingleChildScrollView(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: List.generate(
+                                                  geo.coordinates.length,
+                                                  (int i) {
+                                                    LatLng data =
+                                                        geo.coordinates[i];
+                                                    return Row(
+                                                      spacing: 20,
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        Align(
+                                                          alignment:
+                                                              Alignment.center,
+                                                          child: Text(
+                                                            'Lat : ${data.latitude}',
+                                                          ),
+                                                        ),
+                                                        Align(
+                                                          alignment:
+                                                              Alignment.center,
+                                                          child: Text(
+                                                            'Lng : ${data.longitude}',
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          // Row(
+                                          //   mainAxisAlignment:
+                                          //   MainAxisAlignment.spaceAround,
+                                          //   children: [
+                                          //     CustomButton(
+                                          //       label: 'Cancel',
+                                          //       bgColor: Colors.red,
+                                          //       onPressed: () {
+                                          //         Navigator.pop(context);
+                                          //       },
+                                          //     ),
+                                          //     CustomButton(
+                                          //       label: 'Done',
+                                          //       onPressed: () {
+                                          //         Navigator.pop(
+                                          //           context,
+                                          //           PlottingData(
+                                          //             farmData: geo.farmData ?? GeoAreasCalculateFarm("", "", ""),
+                                          //             listData: geo.coordinates,
+                                          //           ),
+                                          //         );
+                                          //       },
+                                          //     ),
+                                          //   ],
+                                          // ),
+                                        ],
                                       ),
                                     ),
-                                    // Row(
-                                    //   mainAxisAlignment:
-                                    //   MainAxisAlignment.spaceAround,
-                                    //   children: [
-                                    //     CustomButton(
-                                    //       label: 'Cancel',
-                                    //       bgColor: Colors.red,
-                                    //       onPressed: () {
-                                    //         Navigator.pop(context);
-                                    //       },
-                                    //     ),
-                                    //     CustomButton(
-                                    //       label: 'Done',
-                                    //       onPressed: () {
-                                    //         Navigator.pop(
-                                    //           context,
-                                    //           PlottingData(
-                                    //             farmData: geo.farmData ?? GeoAreasCalculateFarm("", "", ""),
-                                    //             listData: geo.coordinates,
-                                    //           ),
-                                    //         );
-                                    //       },
-                                    //     ),
-                                    //   ],
-                                    // ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              )
+                            );
+                          },
+                        );
+                      },
+                    )
                   : SizedBox();
             },
           ),
