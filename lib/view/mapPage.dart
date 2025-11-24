@@ -213,7 +213,7 @@ class _MapPageState extends State<MapPage> {
                               .read<MapControllerProvider>()
                               .setController(c),
                           myLocationEnabled: true,
-                          myLocationButtonEnabled: true,
+                          myLocationButtonEnabled: false,
                           zoomControlsEnabled: false,
                           compassEnabled: true,
                           polygons: polygon,

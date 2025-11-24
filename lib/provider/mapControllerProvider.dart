@@ -243,7 +243,11 @@ class MapControllerProvider extends ChangeNotifier {
 
   setAutoPlotting() async {
     isAutoPlotting = !isAutoPlotting;
-    if(isAutoPlotting) await startCountdown();
+    if(isAutoPlotting) {
+      await startCountdown();
+    } else {
+      showCountdown = false;
+    }
     notifyListeners();
   }
 
